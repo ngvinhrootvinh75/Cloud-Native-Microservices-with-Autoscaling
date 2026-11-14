@@ -1,0 +1,28 @@
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: group10-services
+  namespace: monitoring
+  labels:
+    release: prometheus
+
+spec:
+  namespaceSelector:
+    matchNames:
+      - default
+
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - api-service
+          - catalogue-service
+
+  jobLabel: app
+
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
