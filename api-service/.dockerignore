@@ -1,0 +1,12 @@
+
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+.env
+*.log
+test_main.py
+mock_catalogue.py
+requirements-dev.txt
