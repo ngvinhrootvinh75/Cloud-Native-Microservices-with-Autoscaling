@@ -68,11 +68,3 @@ bash k8s/backup-restore.sh backup    # ghi k8s/backup.sql
 bash k8s/backup-restore.sh restore   # nạp lại từ k8s/backup.sql
 ```
 
-## 6. Kết quả kiểm thử tuần 3
-
-| Kiểm thử | Kết quả | Minh chứng |
-|---|---|---|
-| Pod `postgres-0` Running/Ready | _điền_ | ảnh `kubectl get pods,pvc` |
-| Catalogue kết nối được DB (`/ready` = 200) | _điền_ | ảnh/log |
-| `verify`: xóa Pod, dữ liệu còn | _điền_ | log có dòng PASS |
-| Backup + restore | _điền_ | log số sản phẩm trước/sau |
