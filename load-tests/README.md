@@ -1,4 +1,4 @@
-# W4 – CPU HPA cho Catalogue (TV2)
+# Cách chạy các scripts bắn tải – CPU HPA cho Catalogue (TV2)
 
 Kiểm tra `catalogue-service-hpa` (min 2, max 10, CPU 70%) có tự tăng Pod khi có tải và giảm lại khi hết tải hay không, và dịch vụ có bị gián đoạn trong lúc scale hay không.
 
