@@ -38,7 +38,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: catalogue-service
-          image: DOCKERHUB_USER/catalogue-service:v0.1
+          image: nt533-catalogue-service:v1
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

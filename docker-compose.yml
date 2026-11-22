@@ -41,14 +41,14 @@ services:
         condition: service_healthy
 
   # TV1: bỏ comment khi api-service có Dockerfile (repo chưa có).
-  # api-service:
-  #   build: ./api-service
-  #   environment:
-  #     CATALOGUE_BASE_URL: http://catalogue-service:8001
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     - catalogue-service
+  api-service:
+     build: ./api-service
+     environment:
+       CATALOGUE_BASE_URL: http://catalogue-service:8001
+     ports:
+       - "8000:8000"
+     depends_on:
+       - catalogue-service
 
 volumes:
   postgres-data:
