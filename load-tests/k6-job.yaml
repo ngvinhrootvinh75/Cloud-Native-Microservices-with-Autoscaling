@@ -1,0 +1,57 @@
+# Chạy k6 TRONG cụm (không đi qua Ingress, nên không bị giới hạn 20 rps của ingress.yaml).
+# Script lấy từ ConfigMap `k6-hpa-script` (tạo ở bước 3 trong README.md).
+# Chạy lại: kubectl delete job k6-hpa-test rồi apply lại (Job không tự chạy lại).
+#
+# Đổi mục tiêu sang catalogue trực tiếp:
+#   BASE_URL = http://catalogue-service:8001   và có thể đặt QUERY = "?limit=500"
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-hpa-test
+  namespace: default
+  labels:
+    app: k6-hpa-test
+spec:
+  backoffLimit: 0            # không tự chạy lại khi ngưỡng không đạt, để số liệu không bị lặp
+  ttlSecondsAfterFinished: 7200
+  template:
+    metadata:
+      labels:
+        app: k6-hpa-test
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: grafana/k6:0.49.0
+          args: ["run", "/scripts/hpa-test.js"]
+          env:
+            - name: BASE_URL
+              value: "http://api-service:8000"
+            - name: QUERY
+              value: ""
+            - name: PEAK_VUS
+              value: "30"
+            - name: WARMUP
+              value: "1m"
+            - name: RAMP
+              value: "2m"
+            - name: HOLD
+              value: "5m"
+            - name: THINK_SECONDS
+              value: "0"
+          resources:
+            # k6 cũng ăn CPU của cụm. Giới hạn lại để không làm cụm Minikube 2 CPU nghẹt hoàn toàn.
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 700m
+              memory: 384Mi
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: k6-hpa-script
