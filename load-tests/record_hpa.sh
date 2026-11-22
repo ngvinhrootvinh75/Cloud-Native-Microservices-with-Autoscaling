@@ -2,8 +2,8 @@
 # Ghi số replica, CPU, Pod Ready/Pending của catalogue-service (và api-service) theo thời gian ra file CSV.
 # Chạy trong một cửa sổ riêng, TRƯỚC khi bắn tải và dừng sau khi HPA đã giảm Pod về min (Ctrl+C).
 #
-#   bash load-tests/w4-catalogue-hpa/record_hpa.sh                 # ghi vào hpa-metrics.csv, 5 giây/lần
-#   bash load-tests/w4-catalogue-hpa/record_hpa.sh w4-run1.csv 5
+#   bash load-tests/record_hpa.sh                 # ghi vào hpa-metrics.csv, 5 giây/lần
+#   bash load-tests/record_hpa.sh w4-run1.csv 5
 #
 # Cột CSV:
 #   time_utc, elapsed_s
