@@ -338,7 +338,7 @@
             "uid": "${DS_PROMETHEUS-1}"
           },
           "editorMode": "code",
-          "expr": "100 *\r\nsum(rate(http_request_errors_total{job=\"api-service\"}[5m]))\r\n/\r\nclamp_min(sum(rate(http_requests_total{job=\"api-service\"}[5m])), 1e-9)",
+          "expr": "100 *\r\n(sum(rate(http_request_errors_total{job=\"api-service\"}[5m])) or vector(0))\r\n/\r\nclamp_min(sum(rate(http_requests_total{job=\"api-service\"}[5m])), 1e-9)",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -955,7 +955,7 @@
             "uid": "${DS_PROMETHEUS-1}"
           },
           "editorMode": "code",
-          "expr": "100 *\r\nsum(rate(http_request_errors_total{job=\"catalogue-service\"}[5m]))\r\n/\r\nclamp_min(sum(rate(http_requests_total{job=\"catalogue-service\"}[5m])), 1e-9)",
+          "expr": "100 *\r\n(sum(rate(http_request_errors_total{job=\"catalogue-service\"}[5m])) or vector(0))\r\n/\r\nclamp_min(sum(rate(http_requests_total{job=\"catalogue-service\"}[5m])), 1e-9)",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
