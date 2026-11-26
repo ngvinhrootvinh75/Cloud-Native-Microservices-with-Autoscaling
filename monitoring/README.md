@@ -214,24 +214,22 @@ Grafana Dashboard cần hiển thị:
 - Xây dựng Grafana Dashboard.
 - Kiểm thử giám sát và autoscaling khi hệ thống được tích hợp.
 
-## 10. Kết quả đã thực hiện
+Kết quả kiểm thử tích hợp (TV1 kiểm chứng lại trên Minikube riêng, 26/11):
 
-Đã kiểm tra thành công trên Minikube cá nhân:
+- Prometheus thu thập 4/4 targets UP (2 API Service, 2 Catalogue Service).
+- Import `grafana-dashboard.json` thành công, các panel hiển thị dữ liệu.
+- Panel HTTP Error Rate đã thêm `or vector(0)` ở tử số, hiển thị 0% khi chưa có request lỗi
+  (trước đó báo No data vì counter lỗi chỉ xuất hiện sau request lỗi đầu tiên).
+- Bổ sung 4 panel: API Pod Ready/Pending, API Restarts, API Errors by Route, API CPU % of Request.
+- Khi import, chọn datasource Prometheus cho ô `DS_PROMETHEUS-1`.
 
-- Kubernetes Node ở trạng thái `Ready`.
-- NGINX Ingress Controller hoạt động.
-- Metrics Server cung cấp dữ liệu CPU và RAM.
-- Prometheus hoạt động, có thể truy cập Targets.
-- Grafana hoạt động và truy cập được trang đăng nhập.
-- ServiceMonitor `group10-services` đã được tạo.
-- File Ingress đã vượt qua bước kiểm tra dry-run.
+Lưu ý:
+
+- Ingress giới hạn 20 request/giây và 10 kết nối đồng thời mỗi client (`k8s/ingress.yaml`).
+  Các bài test tải gọi thẳng Service trong cụm (`api-service:8000`), không đi qua Ingress.
+- RPS của API Service hiện tính cả request của probe `/health`, `/ready` (khoảng 0,6 req/s khi không tải).
 
 Các nội dung còn phải thực hiện:
 
-- Kiểm thử API Service và Catalogue Service với Prometheus.
-- Hoàn thiện Grafana Dashboard.
-- Kiểm thử định tuyến Ingress và Rate Limiting.
-- Kiểm thử HPA tự động tăng, giảm Pod.
-- Lưu kết quả kiểm thử và hình ảnh minh chứng.
-
-**Lưu ý:** Các kết quả trên chỉ xác nhận môi trường Kubernetes trên máy Thành viên 4. Chưa phải kết quả kiểm thử end-to-end của toàn bộ hệ thống nhóm.
+- Kiểm thử Rate Limiting qua Ingress.
+- Ghi nhận lỗi HTTP thực tế trên dashboard.
