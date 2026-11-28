@@ -1,0 +1,31 @@
+# W5 - TV4: tai nhe lien tuc de do loi trong luc rolling update (dung lai hpa-test.js cua TV2)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-rolling-test
+  namespace: default
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: grafana/k6:0.49.0
+          args: ["run", "/scripts/hpa-test.js"]
+          env:
+            - { name: BASE_URL, value: "http://api-service:8000" }
+            - { name: PEAK_VUS, value: "5" }
+            - { name: WARMUP, value: "30s" }
+            - { name: RAMP, value: "30s" }
+            - { name: HOLD, value: "4m" }
+            - { name: THINK_SECONDS, value: "0.2" }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          volumeMounts:
+            - { name: script, mountPath: /scripts, readOnly: true }
+      volumes:
+        - name: script
+          configMap: { name: k6-hpa-script }
