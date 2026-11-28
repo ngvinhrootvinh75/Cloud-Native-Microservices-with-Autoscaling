@@ -1,0 +1,6 @@
+﻿deployment.apps/api-service 
+REVISION  CHANGE-CAUSE
+1         <none>
+3         deploy nt533-api-service:v1.0.1 (2026-11-28T23:30:11)
+4         deploy nt533-api-service:v1.0.0 (2026-11-28T23:20:31)
+

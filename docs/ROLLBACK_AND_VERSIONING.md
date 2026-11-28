@@ -119,3 +119,116 @@ Nếu mã nguồn mới thực hiện sai truy vấn hoặc ghi đè dữ liệu
   kubectl scale deployment/catalogue-service --replicas=2
   ```
   Kiểm tra kết nối: `kubectl exec postgres-0 -- psql -U postgres -d catalogue_db -c "SELECT count(*) FROM pg_stat_activity;"`
+---
+
+## 5. CD và Rolling Update cho API Service (TV4)
+
+### 5.1. Cấu hình Rolling Update
+
+Trong `k8s/api-deployment.yaml` (giống `catalogue-deployment.yaml`):
+
+```yaml
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0   # không tắt Pod cũ khi Pod mới chưa Ready
+    maxSurge: 1         # được tạo thêm tối đa 1 Pod mới trong lúc cập nhật
+```
+
+Trình tự: tạo 1 Pod mới → chờ Pod mới Ready (readinessProbe `/ready`) → tắt 1 Pod cũ → lặp lại.
+Số Pod Ready không bao giờ thấp hơn số replica hiện tại, kể cả khi HPA đã scale lên 10 Pod
+(mặc định của Kubernetes là 25%, với 10 Pod sẽ cho phép tắt cùng lúc 2 Pod).
+
+### 5.2. Deploy phiên bản mới bằng script CD
+
+Script: `deploy/deploy.ps1`
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\deploy.ps1 -Tag v1.0.1
+# Service khác:              -Service catalogue-service
+# Image từ Docker Hub (CI):  -ImageName <dockerhub_user>/api-service
+```
+
+Script thực hiện:
+1. Kiểm tra tag đúng quy ước mục 1 (`vX.Y.Z` hoặc `vX.Y.Z-<sha>`), từ chối `:latest`.
+2. `kubectl set image` sang image mới.
+3. Ghi `kubernetes.io/change-cause` để `kubectl rollout history` hiển thị phiên bản và thời điểm deploy.
+4. Chờ `kubectl rollout status` (tối đa 180 giây).
+5. Nếu rollout thất bại hoặc quá thời gian: **tự động `kubectl rollout undo`** về phiên bản trước.
+
+### 5.3. Rollback Checklist cho API Service
+
+Áp dụng Kịch bản 1 (mục 4) cho `api-service`:
+
+- [ ] **Bước 1: Xem lịch sử phiên bản**
+  ```bash
+  kubectl rollout history deployment/api-service
+  ```
+- [ ] **Bước 2: Rollback về phiên bản trước**
+  ```bash
+  kubectl rollout undo deployment/api-service
+  ```
+  *(Hoặc về revision cụ thể: `kubectl rollout undo deployment/api-service --to-revision=<số>`)*
+- [ ] **Bước 3: Theo dõi đến khi hoàn tất**
+  ```bash
+  kubectl rollout status deployment/api-service
+  ```
+- [ ] **Bước 4: Kiểm tra image và Pod**
+  ```bash
+  kubectl get deploy api-service -o jsonpath="{.spec.template.spec.containers[0].image}"
+  kubectl get pods -l app=api-service
+  ```
+
+Ghi chú:
+- Khi rollback, Kubernetes dùng lại ReplicaSet cũ (cùng `pod-template-hash` trong tên Pod) nên rollback nhanh.
+  Revision cũ được đánh số mới (ví dụ revision 2 thành revision 4).
+- `kubectl rollout undo` không cập nhật annotation `last-applied-configuration`. Nếu sau đó chạy
+  `kubectl apply -f k8s/api-deployment.yaml`, image sẽ bị đưa về đúng tag ghi trong file manifest.
+  Cần cập nhật tag trong manifest cho khớp phiên bản đang chạy.
+
+### 5.4. Kiểm thử Rolling Update và Rollback khi có tải
+
+**Môi trường:** Minikube 1 node (2 CPU, 2 GB RAM), api-service 2 replica, HPA CPU 70% (min 2, max 10).
+Image build cục bộ bằng `minikube image build -t nt533-api-service:<tag> ./api-service`.
+
+**Tải:** Job `load-tests/k6-rolling-job.yaml`, dùng lại script `load-tests/hpa-test.js` (TV2):
+5 VU, nghỉ 0,2 giây giữa 2 request, gọi `GET http://api-service:8000/products` trong cụm (không qua Ingress).
+Warm-up 30s, tăng tải 30s, giữ tải 4 phút; deploy/rollback chạy khoảng 75 giây sau khi tải ổn định.
+
+**Kết quả (28/11/2026):**
+
+| Lần | Thao tác | Thời gian rollout | Tổng request | Lỗi | p95 | Max |
+|---|---|---|---|---|---|---|
+| 1 | Deploy v1.0.0 → v1.0.1 | 13 s | 6.117 (18,5 req/s) | **0 (0%)** | 35,4 ms | 273 ms |
+| 2 | Rollback v1.0.1 → v1.0.0 | 12 s | 6.273 (19,0 req/s) | **6 (0,09%)** | 22,7 ms | 37 ms |
+
+- Mỗi Pod mới Ready sau khoảng 6 giây; Pod cũ chỉ bị tắt sau khi Pod mới Ready.
+- Cả hai lần: Restarts = 0, Pending = 0, Pod DB `postgres-0` không bị ảnh hưởng.
+- Minh chứng: `load-tests/results/w5/` (log k6 và lịch sử revision).
+
+### 5.5. Phân tích lỗi khi Rollback và đề xuất
+
+Log k6 lần 2:
+
+```
+16:38:15Z  connection refused  (2 request)
+16:38:21Z  connection refused  (3 request)
+16:38:51Z  i/o timeout         (1 request)
+```
+
+Hai mốc cách nhau 6 giây, trùng thời điểm tắt Pod cũ thứ nhất và thứ hai. Khi Pod bị tắt, Kubernetes đồng thời
+gửi `SIGTERM` cho ứng dụng (uvicorn ngừng nhận kết nối ngay) và gỡ Pod khỏi endpoint của Service
+(cần thêm vài giây để kube-proxy cập nhật). Trong khoảng chênh lệch đó, một số request vẫn được chuyển tới Pod đang tắt.
+Lỗi mang tính ngẫu nhiên: lần 1 không gặp, lần 2 gặp.
+
+**Đề xuất:** thêm `preStop` hook vào container của API và Catalogue để Pod chờ 5 giây trước khi nhận `SIGTERM`:
+
+```yaml
+lifecycle:
+  preStop:
+    exec:
+      command: ["sleep", "5"]
+```
+
+Thời gian chờ này nằm trong `terminationGracePeriodSeconds` (mặc định 30 giây) nên không ảnh hưởng mục 3.
+Sau khi TV1, TV2 thêm `preStop`, chạy lại 2 bài kiểm thử trên để so sánh trước/sau.
